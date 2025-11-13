@@ -1,0 +1,170 @@
+---
+title: "JCIVIL"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+```
+
+Estado general Compra Directa
+=============================
+
+
+
+
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Chart A
+
+```{r}
+
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Chart B
+
+```{r}
+
+```
+
+### Chart C
+
+```{r}
+
+```
+
+Cronograma de desembolso 
+========================
+
+* Proveedores 
+* Logística
+* Honorarios prof.
+
+|Empresa| Material| Cantidad|
+|-------|---------|---------|
+|Siderchap| Mecha Acero Rápido 6,25MM| 10 unid|
+|Bevilaqua| Tornillos Fix 3,5x16MM| 10000unid|
+|NicoTools| Disco de corte 4"x1,6MM| 100unid|
+|| Mecha Acero Rápido 8,25MM| 10unid|
+|| Mecha Acero Rápido 10,25MM| 10unid|
+|| Mecha Acero Rápido 3,25MM| 10unid|
+|EnferSA| Disco de corte 7" x1,6MM| 100unid|
+|| Mecha Acero Rápido 4,25MM| 10unid|
+|| Mecha Acero Rápido 7,25MM| 10unid|
+|| Mecha Acero Rápido 6,25MM| 10unid|
+|| Mecha Widia Encastre SDS plus N°8| 10unid|
+|| Mecha Widia Encastre SDS plus N°10| 10unid|
+
+
+Grado de avance en compras
+==========================
+
+```{r avance_obra_completo, echo=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=7}
+# Cargar librerías necesarias
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# --- 1. Definición de Datos ---
+dias_octubre <- 1:31
+avance_teorico_diario <- 100 / 31 # Avance teórico constante (aprox. 3.23%)
+
+# Valores reales proporcionados (31 días)
+avance_real_completo <- c(0,0,0,0,4,3,6,16,0,0,0,4,0,0,0,4,3,6,16,0,0,0,4,4,10,5,5,10,0,0,0)
+
+# --- 2. Preparación y Cálculo Acumulado (Curva S) ---
+df_avance <- data.frame(
+  Dia = dias_octubre,
+  Teorico = rep(avance_teorico_diario, 31),
+  Real = avance_real_completo
+)
+
+# Calcular el avance ACUMULADO
+df_avance_acumulado <- df_avance %>%
+  mutate(
+    Acumulado_Real = cumsum(Real),
+    Acumulado_Teorico = cumsum(Teorico)
+  )
+
+# Pivotar los datos DIARIOS (ancho a largo) para el gráfico de barras agrupadas
+df_largo_diario <- df_avance %>%
+  pivot_longer(
+    cols = c(Teorico, Real),
+    names_to = "Tipo_Avance_Diario",
+    values_to = "Porcentaje_Diario"
+  )
+
+# --- 3. Generación del Gráfico ---
+ggplot(df_largo_diario, aes(x = as.factor(Dia))) +
+  
+  # Barras de Avance Diario (Teórico vs. Real)
+  geom_bar(
+    aes(y = Porcentaje_Diario, fill = Tipo_Avance_Diario), 
+    stat = "identity", 
+    position = "dodge", 
+    alpha = 0.8
+  ) +
+  
+  # Línea de Avance Acumulado Real (Curva S)
+  geom_line(
+    data = df_avance_acumulado,
+    aes(x = Dia, y = Acumulado_Real, group = 1, color = "Real Acumulado"),
+    linewidth = 1.5
+  ) +
+  # Línea de Avance Acumulado Teórico (Curva S)
+  geom_line(
+    data = df_avance_acumulado,
+    aes(x = Dia, y = Acumulado_Teorico, group = 1, color = "Teórico Acumulado"),
+    linetype = "dashed",
+    linewidth = 1.2
+  ) +
+  
+  # Etiquetas y Títulos
+  labs(
+    title = "Comparativa de Avance de Obra: Diario y Curva S (Octubre 2025)",
+    subtitle = paste0("Avance Teórico Diario Objetivo: ", round(avance_teorico_diario, 2), "%"),
+    x = "Día del Mes de Octubre",
+    y = "Avance Diario (%)",
+    fill = "Avance Diario"
+  ) +
+  
+  # Escala del Eje Y (Primario y Secundario)
+  scale_y_continuous(
+    breaks = seq(0, max(df_largo_diario$Porcentaje_Diario, na.rm = TRUE) + 5, by = 5), 
+    limits = c(0, max(df_largo_diario$Porcentaje_Diario, na.rm = TRUE) + 5),
+    sec.axis = sec_axis(~., 
+                        name = "Avance Acumulado (%) - Curva S", 
+                        breaks = seq(0, 100, by = 10)) # Eje 0 a 100 para la curva S
+  ) +
+  
+  # Colores Manuales
+  scale_fill_manual(
+    values = c("Teorico" = "#58CCED", "Real" = "#FC4A1A"),
+    labels = c("Real", "Teórico")
+  ) +
+  scale_color_manual(
+    name = "Curva S",
+    values = c("Real Acumulado" = "#004E89", "Teórico Acumulado" = "#FF9F1C")
+  ) +
+  
+  # Tema y Estética
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    legend.position = "bottom",
+    legend.box = "horizontal"
+  ) +
+  # Asegurar que el eje X muestre todos los 31 días
+  scale_x_discrete(breaks = as.character(dias_octubre))
+
+
+
