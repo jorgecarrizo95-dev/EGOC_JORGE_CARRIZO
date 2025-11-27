@@ -1,0 +1,340 @@
+---
+title: "JCIVIL"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+```
+
+Estado general Compra Directa
+=============================
+
+
+
+
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Detalle de Compras
+
+---
+title: "Distribución de Gastos por Item (Barras Verticales)"
+output: html_document
+---
+
+```{r grafico_barras_gastos, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE}
+# Cargar librerías necesarias
+library(ggplot2)
+library(dplyr)
+library(scales) # Para formatear los montos en el eje Y
+
+# --- 1. DATOS Y COLORES ---
+df_gastos <- data.frame(
+  Proveedor = c("Enfer", "Hierros Maldonado", "NicoTools", "Suri", "Bevilacqua"),
+  Gasto = c(276710, 180692, 262000, 355033, 59000),
+  Monto_Final = 1133535 # Este dato se usa para verificación, no es necesario en el gráfico
+)
+
+# Definición de los colores solicitados
+colores_manuales <- c(
+  "Enfer" = "blue",
+  "Hierros Maldonado" = "red",
+  "NicoTools" = "orange",
+  "Suri" = "yellow",
+  # Asignar un color por defecto a Bevilacqua (ej. gris)
+  "Bevilacqua" = "gray50" 
+)
+
+# --- 2. GENERACIÓN DEL GRÁFICO DE BARRAS VERTICALES ---
+grafico_barras <- ggplot(df_gastos, aes(x = reorder(Proveedor, Gasto), y = Gasto, fill = Proveedor)) +
+  
+  # 1. Crear las barras verticales
+  geom_bar(stat = "identity") +
+  
+  # 2. Asignar los colores manuales
+  scale_fill_manual(values = colores_manuales) +
+  
+  # 3. Añadir etiquetas de texto sobre cada barra con el monto
+  geom_text(
+    aes(label = paste0("$", format(Gasto, big.mark = ".", scientific = FALSE))),
+    vjust = -0.5, # Posición justo encima de la barra
+    size = 4,
+    color = "black"
+  ) +
+  
+  # 4. Formato y Títulos
+  labs(
+    title = "Gasto Total Incurrido por Proveedor",
+    subtitle = paste0("Monto Total del Proyecto: $", format(df_gastos$Monto_Final[1], big.mark = ".", scientific = FALSE)),
+    x = "Proveedor",
+    y = "Monto Gastado ($)"
+  ) +
+  
+  # 5. Formatear el eje Y para mostrar valores en formato de moneda (con comas/puntos)
+  scale_y_continuous(labels = scales::label_dollar(prefix = "$", big.mark = ".")) +
+  
+  # 6. Tema y Estética
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    plot.subtitle = element_text(hjust = 0.5),
+    legend.position = "none", # Ocultar la leyenda ya que los colores están en el eje X
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10) # Rotar etiquetas X para mejor lectura
+  )
+
+grafico_barras
+```
+
+
+
+Column {data-width=300}
+-----------------------------------------------------------------------
+
+### Ubicación Proveedores
+
+```{r mapa_leaflet_nombrado, echo=FALSE, message=FALSE, warning=FALSE, fig.width=8, fig.height=6}
+# Cargar la librería leaflet
+library(leaflet)
+
+# --- 1. Definir los Datos (Coordenadas y Nombres) ---
+
+latitudes <- c(-32.93987509452464, -32.89705685998317, -32.949458020305094, -32.927703169238185, -32.906457087557065)
+longitudes <- c(-68.79406971797626, -68.79177755393054, -68.79029481567423, -68.81044042130645, -68.86505925940722)
+
+# Los nombres que aparecerán al hacer clic en el marcador (popup)
+nombres_marcador <- c("Enfer", "Hierros Maldonado", "NicoTools", "Suri", "Bevilaqua")
+
+# --- 2. Crear y Configurar el Mapa ---
+
+leaflet() %>%
+  # Añadir el mapa base de OpenStreetMap
+  addTiles() %>%
+  
+  # Centrar el mapa en el punto medio y establecer un zoom inicial
+  setView(
+    lng = mean(longitudes), 
+    lat = mean(latitudes), 
+    zoom = 12 
+  ) %>%
+  
+  # Añadir los marcadores
+  addMarkers(
+    lng = longitudes, 
+    lat = latitudes,
+    # Asignar los nombres a los popups
+    popup = nombres_marcador 
+  ) %>%
+  
+  # Ajustar la vista para asegurar que ambos marcadores sean visibles
+  fitBounds(
+    lng1 = min(longitudes), 
+    lat1 = min(latitudes), 
+    lng2 = max(longitudes), 
+    lat2 = max(latitudes)
+  )
+```
+
+
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Distribución gastos por Proveedor
+
+```{r grafico_torta_personalizado, echo=FALSE, fig.height=8, fig.width=8, message=FALSE, warning=FALSE}
+# Cargar librerías necesarias
+library(ggplot2)
+library(dplyr)
+
+# --- 1. DATOS Y COLORES ---
+df_gastos <- data.frame(
+  Proveedor = c("Enfer", "Hierros Maldonado", "NicoTools", "Suri", "Bevilacqua"),
+  Gasto = c(276710, 180692, 262000, 355033, 59000),
+  # Definición de colores según tu solicitud
+  Color = c("blue", "red", "orange", "yellow", "pink")
+)
+
+# --- 2. CÁLCULO DE PORCENTAJES Y POSICIONES ---
+df_grafico <- df_gastos %>%
+  # Calcular el porcentaje de cada gasto
+  mutate(
+    Porcentaje = Gasto / sum(Gasto),
+    Etiqueta_Monto = paste0("$", format(Gasto, big.mark = ".", scientific = FALSE)),
+    Etiqueta_Porcentaje = scales::percent(Porcentaje, accuracy = 0.1)
+  ) %>%
+  # Ordenar los datos (importante para el gráfico de torta)
+  arrange(desc(Proveedor)) %>%
+  # Calcular la posición acumulada para centrar las etiquetas
+  mutate(
+    y_pos = cumsum(Porcentaje) - 0.5 * Porcentaje
+  )
+
+# --- 3. GENERACIÓN DEL GRÁFICO DE TORTA ---
+grafico_final <- ggplot(df_grafico, aes(x = "", y = Porcentaje, fill = Proveedor)) +
+  
+  # Crear las barras apiladas que formarán la torta
+  geom_bar(width = 1, stat = "identity") +
+  
+  # Añadir las etiquetas de porcentaje
+  geom_text(
+    aes(y = y_pos, label = Etiqueta_Porcentaje), 
+    color = "black", 
+    size = 4.5
+  ) +
+  
+  # Asignar los colores solicitados manualmente
+  scale_fill_manual(values = setNames(df_grafico$Color, df_grafico$Proveedor)) +
+  
+  # CONVERSIÓN a GRÁFICO DE TORTA
+  coord_polar("y", start = 0) +
+  
+  # --- 4. TÍTULOS Y ESTILO ---
+  labs(
+    title = "Distribución Porcentual de Gastos por Proveedor",
+    subtitle = paste0("Gasto Total: $", format(sum(df_gastos$Gasto), big.mark = ".", scientific = FALSE)),
+    fill = "Proveedor"
+  ) +
+  theme_void() + # Eliminar ejes y fondo
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    plot.subtitle = element_text(hjust = 0.5),
+    legend.position = "right"
+  )
+
+grafico_final
+```
+
+
+
+Detalle materiales compra 
+========================
+
+* Proveedores 
+* Logística
+* Honorarios prof.
+
+|Empresa| Material| Cantidad|
+|-------|---------|---------|
+|Siderchap| Mecha Acero Rápido 6,25MM| 10 unid|
+|Bevilaqua| Tornillos Fix 3,5x16MM| 10000unid|
+|NicoTools| Disco de corte 4"x1,6MM| 100unid|
+|| Mecha Acero Rápido 8,25MM| 10unid|
+|| Mecha Acero Rápido 10,25MM| 10unid|
+|| Mecha Acero Rápido 3,25MM| 10unid|
+|EnferSA| Disco de corte 7" x1,6MM| 100unid|
+|| Mecha Acero Rápido 4,25MM| 10unid|
+|| Mecha Acero Rápido 7,25MM| 10unid|
+|| Mecha Acero Rápido 6,25MM| 10unid|
+|| Mecha Widia Encastre SDS plus N°8| 10unid|
+|| Mecha Widia Encastre SDS plus N°10| 10unid|
+|Suri| Disco de corte 7"x13,2MM| 100unid|
+
+Grado de avance en compras
+==========================
+
+```{r avance_obra_completo, echo=FALSE, warning=FALSE, message=FALSE, fig.width=12, fig.height=7}
+# Cargar librerías necesarias
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+
+# --- 1. Definición de Datos ---
+dias_octubre <- 1:31
+avance_teorico_diario <- 100 / 31 # Avance teórico constante (aprox. 3.23%)
+
+# Valores reales proporcionados (31 días)
+avance_real_completo <- c(0,0,0,0,4,3,6,16,0,0,0,4,0,0,0,4,3,6,16,0,0,0,4,4,10,5,5,10,0,0,0)
+
+# --- 2. Preparación y Cálculo Acumulado (Curva S) ---
+df_avance <- data.frame(
+  Dia = dias_octubre,
+  Teorico = rep(avance_teorico_diario, 31),
+  Real = avance_real_completo
+)
+
+# Calcular el avance ACUMULADO
+df_avance_acumulado <- df_avance %>%
+  mutate(
+    Acumulado_Real = cumsum(Real),
+    Acumulado_Teorico = cumsum(Teorico)
+  )
+
+# Pivotar los datos DIARIOS (ancho a largo) para el gráfico de barras agrupadas
+df_largo_diario <- df_avance %>%
+  pivot_longer(
+    cols = c(Teorico, Real),
+    names_to = "Tipo_Avance_Diario",
+    values_to = "Porcentaje_Diario"
+  )
+
+# --- 3. Generación del Gráfico ---
+ggplot(df_largo_diario, aes(x = as.factor(Dia))) +
+  
+  # Barras de Avance Diario (Teórico vs. Real)
+  geom_bar(
+    aes(y = Porcentaje_Diario, fill = Tipo_Avance_Diario), 
+    stat = "identity", 
+    position = "dodge", 
+    alpha = 0.8
+  ) +
+  
+  # Línea de Avance Acumulado Real (Curva S)
+  geom_line(
+    data = df_avance_acumulado,
+    aes(x = Dia, y = Acumulado_Real, group = 1, color = "Real Acumulado"),
+    linewidth = 1.5
+  ) +
+  # Línea de Avance Acumulado Teórico (Curva S)
+  geom_line(
+    data = df_avance_acumulado,
+    aes(x = Dia, y = Acumulado_Teorico, group = 1, color = "Teórico Acumulado"),
+    linetype = "dashed",
+    linewidth = 1.2
+  ) +
+  
+  # Etiquetas y Títulos
+  labs(
+    title = "Comparativa de Avance de Compras: Diario y Curva S (Octubre 2025)",
+    subtitle = paste0("Avance Teórico Diario Objetivo: ", round(avance_teorico_diario, 2), "%"),
+    x = "Día del Mes de Octubre",
+    y = "Avance Diario (%)",
+    fill = "Avance Diario"
+  ) +
+  
+  # Escala del Eje Y (Primario y Secundario)
+  scale_y_continuous(
+    breaks = seq(0, max(df_largo_diario$Porcentaje_Diario, na.rm = TRUE) + 5, by = 5), 
+    limits = c(0, max(df_largo_diario$Porcentaje_Diario, na.rm = TRUE) + 5),
+    sec.axis = sec_axis(~., 
+                        name = "Avance Acumulado (%) - Curva S", 
+                        breaks = seq(0, 100, by = 10)) # Eje 0 a 100 para la curva S
+  ) +
+  
+  # Colores Manuales
+  scale_fill_manual(
+    values = c("Teorico" = "#58CCED", "Real" = "#FC4A1A"),
+    labels = c("Real", "Teórico")
+  ) +
+  scale_color_manual(
+    name = "Curva S",
+    values = c("Real Acumulado" = "#004E89", "Teórico Acumulado" = "#FF9F1C")
+  ) +
+  
+  # Tema y Estética
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+    legend.position = "bottom",
+    legend.box = "horizontal"
+  ) +
+  # Asegurar que el eje X muestre todos los 31 días
+  scale_x_discrete(breaks = as.character(dias_octubre))
+
+
+
